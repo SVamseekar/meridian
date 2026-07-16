@@ -4,14 +4,14 @@ Commercial analytics platform for B2B SaaS companies. Turns product usage and CR
 
 ## What it does
 
-| Capability | Description |
-|---|---|
-| **Revenue / cashflow forecasting** | Usage-driven revenue forecasts with confidence intervals |
-| **Feature adoption & engagement** | Cohort analysis of feature usage by firm type, role, and tenure |
-| **Churn & health scoring** | Composite health score + ML-based churn risk classification |
-| **CRM data quality & enrichment** | Automated audit and enrichment of CRM records |
-| **Sales funnel analysis** | Stage-duration tracking, stall detection, conversion prediction |
-| **Executive reporting** | Automated digest replacing manual spreadsheet reporting |
+| Capability                         | Description                                                     |
+| ---------------------------------- | --------------------------------------------------------------- |
+| **Revenue / cashflow forecasting** | Usage-driven revenue forecasts with confidence intervals        |
+| **Feature adoption & engagement**  | Cohort analysis of feature usage by firm type, role, and tenure |
+| **Churn & health scoring**         | Composite health score + ML-based churn risk classification     |
+| **CRM data quality & enrichment**  | Automated audit and enrichment of CRM records                   |
+| **Sales funnel analysis**          | Stage-duration tracking, stall detection, conversion prediction |
+| **Executive reporting**            | Automated digest replacing manual spreadsheet reporting         |
 
 ## Stack
 
@@ -41,4 +41,4 @@ More setup instructions will land here as the stack comes online.
 
 ## License
 
-TBD.
+MIT — see [LICENSE](LICENSE).
