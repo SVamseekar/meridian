@@ -1,6 +1,6 @@
 # Meridian
 
-Commercial analytics platform for B2B SaaS companies. Turns product usage and CRM data into revenue forecasts, churn/health scores, feature adoption insights, sales funnel diagnostics, and automated executive reporting.
+Multi-tenant commercial analytics platform for B2B SaaS companies. Turns product usage and CRM data into revenue forecasts, churn/health scores, feature adoption insights, sales funnel diagnostics, and automated executive reporting.
 
 ## What it does
 
@@ -24,12 +24,13 @@ Commercial analytics platform for B2B SaaS companies. Turns product usage and CR
 - **Analytics:** Python, pandas
 - **Visualization:** Plotly
 - **API:** FastAPI
+- **Frontend / tenant portal:** Next.js
 - **BI/dashboards:** Metabase
 - **CI/CD:** GitHub Actions
 
 ## Status
 
-Early development. Bootstrapped on a synthetic data generator that mimics Amplitude/HubSpot data shapes, so the rest of the stack (dbt, ML, API, BI) can be built and validated before live integrations are wired up.
+Early development. Every table, query, and ML model run is scoped by tenant (`tenant_id`) — Meridian is built multi-tenant from the ground up, not retrofitted later. Currently bootstrapped on a synthetic data generator that mimics multi-tenant Amplitude/HubSpot data shapes, so the rest of the stack (dbt, ML, API, BI) can be built and validated before live tenant integrations (HubSpot OAuth, direct SDK ingestion) are wired up.
 
 ## Getting Started
 
