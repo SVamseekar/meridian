@@ -1,0 +1,9 @@
+#!/bin/sh
+# Prevent "Co-Authored-By" trailers in commit messages (see docs/guidelines/git-branching.md)
+
+commit_msg_file=$1
+
+if grep -qi "co-authored-by:" "$commit_msg_file"; then
+  echo "Error: Commit message contains 'Co-Authored-By' trailer, which is prohibited." >&2
+  exit 1
+fi
