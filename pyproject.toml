@@ -1,0 +1,24 @@
+[project]
+name = "meridian"
+version = "0.1.0"
+description = "Multi-tenant commercial analytics platform for B2B SaaS"
+authors = [
+    {name = "Marti Soura Vamseekar"}
+]
+readme = "README.md"
+requires-python = "^3.11"
+dependencies = [
+    "sqlalchemy (>=2.0.51,<3.0.0)",
+    "alembic (>=1.18.5,<2.0.0)",
+    "psycopg[binary] (>=3.3.4,<4.0.0)",
+    "fastapi (>=0.139.2,<0.140.0)",
+    "uvicorn[standard] (>=0.51.0,<0.52.0)",
+    "cryptography (>=49.0.0,<50.0.0)",
+    "pydantic-settings (>=2.14.2,<3.0.0)",
+    "python-dotenv (>=1.2.2,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
