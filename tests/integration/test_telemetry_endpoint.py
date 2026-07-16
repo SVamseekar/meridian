@@ -16,7 +16,7 @@ async def test_valid_write_key_returns_202_and_lands_row(async_client, db_sessio
     await db_session.flush()
 
     plaintext, key_hash = generate_write_key()
-    db_session.add(TenantWriteKey(id=uuid.uuid4(), tenant_id=tenant.id, write_key_hash=key_hash))
+    db_session.add(TenantWriteKey(id=uuid.uuid4(), tenant_id=tenant.id, write_key_hash=key_hash, last_four=plaintext[-4:]))
     await db_session.commit()
 
     response = await async_client.post(
@@ -80,7 +80,7 @@ async def test_revoked_write_key_returns_401(async_client, db_session):
     plaintext, key_hash = generate_write_key()
     db_session.add(
         TenantWriteKey(
-            id=uuid.uuid4(), tenant_id=tenant.id, write_key_hash=key_hash,
+            id=uuid.uuid4(), tenant_id=tenant.id, write_key_hash=key_hash, last_four=plaintext[-4:],
             revoked_at=dt.now(timezone.utc),
         )
     )
@@ -107,7 +107,7 @@ async def test_client_supplied_tenant_id_is_ignored(async_client, db_session):
     await db_session.flush()
 
     plaintext, key_hash = generate_write_key()
-    db_session.add(TenantWriteKey(id=uuid.uuid4(), tenant_id=tenant.id, write_key_hash=key_hash))
+    db_session.add(TenantWriteKey(id=uuid.uuid4(), tenant_id=tenant.id, write_key_hash=key_hash, last_four=plaintext[-4:]))
     await db_session.commit()
 
     response = await async_client.post(
@@ -137,7 +137,7 @@ async def test_rate_limit_exceeded_returns_429(async_client, db_session, monkeyp
     await db_session.flush()
 
     plaintext, key_hash = generate_write_key()
-    db_session.add(TenantWriteKey(id=uuid.uuid4(), tenant_id=tenant.id, write_key_hash=key_hash))
+    db_session.add(TenantWriteKey(id=uuid.uuid4(), tenant_id=tenant.id, write_key_hash=key_hash, last_four=plaintext[-4:]))
     await db_session.commit()
 
     from meridian.api.routes import telemetry as telemetry_module
