@@ -63,3 +63,38 @@ def test_middleware_includes_tenant_id_when_set_on_request_state():
     assert len(records) == 1
     payload = json.loads(records[0].getMessage())
     assert payload["tenant_id"] == "11111111-1111-1111-1111-111111111111"
+
+
+def test_middleware_logs_even_when_handler_raises_exception():
+    app = FastAPI()
+    app.add_middleware(RequestLoggingMiddleware)
+
+    @app.get("/error")
+    def error_route():
+        raise ValueError("boom")
+
+    client = TestClient(app, raise_server_exceptions=False)
+    import logging as _logging
+    logger = _logging.getLogger("meridian.request")
+    records = []
+
+    class _Capture(_logging.Handler):
+        def emit(self, record):
+            records.append(record)
+
+    handler = _Capture()
+    logger.addHandler(handler)
+    logger.setLevel(_logging.INFO)
+    try:
+        response = client.get("/error")
+    finally:
+        logger.removeHandler(handler)
+
+    # Should receive 500 response instead of exception bubbling up
+    assert response.status_code == 500
+    # Should have logged exactly one record
+    assert len(records) == 1
+    payload = json.loads(records[0].getMessage())
+    assert payload["route"] == "/error"
+    assert payload["status_code"] == 500
+    assert "latency_ms" in payload
