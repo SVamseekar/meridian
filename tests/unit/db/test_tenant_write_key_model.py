@@ -3,7 +3,7 @@ from meridian.db.models.tenant_write_key import TenantWriteKey
 
 def test_tenant_write_key_has_expected_columns():
     columns = {c.name for c in TenantWriteKey.__table__.columns}
-    assert columns == {"id", "tenant_id", "write_key_hash", "created_at", "revoked_at"}
+    assert columns == {"id", "tenant_id", "write_key_hash", "last_four", "created_at", "revoked_at"}
 
 
 def test_write_key_hash_is_unique():
