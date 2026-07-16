@@ -1,4 +1,7 @@
+import os
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from meridian.api.middleware import RequestLoggingMiddleware
 from meridian.api.routes.telemetry import telemetry_router
@@ -8,6 +11,16 @@ from meridian.logging_config import configure_logging
 configure_logging()
 
 app = FastAPI(title="Meridian API")
+
+# Configure CORS for frontend dev origin
+cors_allowed_origins = os.environ.get("CORS_ALLOWED_ORIGINS", "http://localhost:3001").split(",")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_allowed_origins,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    allow_credentials=False,
+)
 app.add_middleware(RequestLoggingMiddleware)
 
 app.include_router(telemetry_router, prefix="/api/v1")
