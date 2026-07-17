@@ -1,0 +1,25 @@
+version: 2
+
+sources:
+  - name: app
+    description: "Tables owned and migrated by the FastAPI app via Alembic — dbt reads these, never writes them."
+    schema: public
+    tables:
+      - name: tenants
+        description: "A Meridian customer business. See Decision D08."
+        columns:
+          - name: id
+            description: "Primary key, referenced by tenant_id across every other table."
+      - name: raw_events
+        description: "Raw telemetry event, tenant-scoped. Fed by both direct SDK ingestion (built) and Amplitude pull (not yet built) — see Decision D11."
+        columns:
+          - name: id
+          - name: tenant_id
+          - name: anonymous_id
+          - name: user_id
+          - name: event_name
+          - name: properties
+          - name: client_timestamp
+          - name: received_at
+      - name: tenant_write_keys
+        description: "Write-key credentials for the direct SDK ingestion path. See Decision D14."
