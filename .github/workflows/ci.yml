@@ -28,6 +28,63 @@ jobs:
       - name: Run integration tests (Testcontainers)
         run: poetry run pytest tests/integration -v
 
+  dbt-tests:
+    runs-on: ubuntu-latest
+    needs: python-tests
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: meridian
+          POSTGRES_PASSWORD: meridian
+          POSTGRES_DB: meridian
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql+psycopg://meridian:meridian@localhost:5432/meridian
+        run: poetry run alembic upgrade head
+
+      - name: Seed dev tenant and one raw_events row
+        env:
+          DATABASE_URL: postgresql+psycopg://meridian:meridian@localhost:5432/meridian
+        run: |
+          poetry run python scripts/seed_dev_tenant.py
+          poetry run python scripts/seed_dev_raw_event.py
+
+      - name: dbt run
+        working-directory: dbt
+        env:
+          DBT_POSTGRES_HOST: localhost
+          DBT_POSTGRES_PORT: "5432"
+          DBT_POSTGRES_USER: meridian
+          DBT_POSTGRES_PASSWORD: meridian
+          DBT_POSTGRES_DB: meridian
+        run: poetry run dbt run --profiles-dir .
+
+      - name: dbt test
+        working-directory: dbt
+        env:
+          DBT_POSTGRES_HOST: localhost
+          DBT_POSTGRES_PORT: "5432"
+          DBT_POSTGRES_USER: meridian
+          DBT_POSTGRES_PASSWORD: meridian
+          DBT_POSTGRES_DB: meridian
+        run: poetry run dbt test --profiles-dir .
+
   frontend-e2e:
     runs-on: ubuntu-latest
     needs: python-tests
