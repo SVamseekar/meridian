@@ -91,3 +91,33 @@ async def test_run_update_posts_events_via_http_for_each_active_tenant(seeded_en
     headers = call_args.kwargs.get("headers", {})
     assert "Authorization" in headers
     assert headers["Authorization"] == f"Bearer {plaintext}"
+
+
+async def test_run_update_spreads_event_timestamps_across_simulated_days(seeded_engine):
+    session_factory, tenant_id, plaintext = seeded_engine
+
+    mock_response = AsyncMock()
+    mock_response.status_code = 202
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock, return_value=mock_response) as mock_post:
+        await run_update_for_tenant(
+            tenant_id=tenant_id,
+            write_key_plaintext=plaintext,
+            days=3,
+            seed=42,
+            base_url="http://test",
+            session_factory=session_factory,
+        )
+
+    client_timestamps = [
+        call.kwargs["json"]["client_timestamp"] for call in mock_post.call_args_list
+    ]
+    assert len(client_timestamps) > 0
+
+    # Timestamps must vary across the simulated days, not all collapse to
+    # "now" — otherwise the --days N temporal spread is lost.
+    distinct_timestamps = set(client_timestamps)
+    assert len(distinct_timestamps) >= 3
+
+    parsed_dates = sorted({ts[:10] for ts in client_timestamps})
+    assert len(parsed_dates) == 3

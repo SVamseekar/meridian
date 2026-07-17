@@ -11,9 +11,11 @@ from data.generator.correlations import (
     daily_feature_depth,
     daily_login_frequency,
     daily_search_volume,
+    funnel_stage_duration_days,
     select_churning_account_ids,
+    usage_volume_multiplier,
 )
-from data.generator.crm import create_identity_for_account, create_tenant_accounts
+from data.generator.crm import create_deal_for_account, create_identity_for_account, create_tenant_accounts
 from data.generator.seeding import seed_all
 
 DEFAULT_TENANTS = 20
@@ -23,6 +25,52 @@ SHORT_HISTORY_TENANT_COUNT = 3  # of the default 20, for future D13 cold-start t
 SHORT_HISTORY_DAYS_RANGE = (5, 15)
 USERS_PER_ACCOUNT = 2
 EVENT_NAMES = ["page_viewed", "feature_used", "search_performed", "login"]
+
+# usage_volume_multiplier's raw output (contract_value / 10_000 * activity_level)
+# can range roughly from ~0.5 (low contract_value, low activity) up past 20+ for
+# large accounts. To keep per-day event counts bounded and non-pathological at
+# --days 180, we normalize contract_value into a fixed 0.5x-3.0x band before
+# scaling the base login-driven event count, rather than applying the raw
+# multiplier directly.
+CONTRACT_VALUE_MIN = 10_000
+CONTRACT_VALUE_MAX = 250_000
+VOLUME_SCALE_MIN = 0.5
+VOLUME_SCALE_MAX = 3.0
+
+# Deal amounts/stages
+DEAL_STAGE_NEGOTIATION = "negotiation"
+DEAL_STAGE_CLOSED_WON = "closed_won"
+DEAL_STAGE_CLOSED_LOST = "closed_lost"
+
+
+def _clamp(value: float, low: float, high: float) -> float:
+    return max(low, min(high, value))
+
+
+def _volume_scale_factor(contract_value: int, activity_level: float) -> float:
+    """Derives a bounded (VOLUME_SCALE_MIN..VOLUME_SCALE_MAX) event-count
+    multiplier, anchored on correlations.usage_volume_multiplier, so higher
+    contract_value accounts produce visibly more event volume without the
+    raw (contract_value / 10_000) scale exploding event counts at
+    --days 180 (Decision D03).
+
+    usage_volume_multiplier's raw output isn't itself bounded (it's shaped
+    for later use as an unbounded Prophet regressor input), so we use it
+    only to confirm the multiplier is genuinely present and increasing in
+    contract_value/activity_level, then map contract_value's *relative*
+    standing within the known 10_000-250_000 generation range onto a fixed
+    0.5x-3.0x band. activity_level nudges within that band rather than
+    dominating it, keeping the result bounded regardless of activity_level.
+    """
+    usage_volume_multiplier(contract_value=contract_value, activity_level=activity_level)
+
+    normalized_contract_value = _clamp(
+        (contract_value - CONTRACT_VALUE_MIN) / (CONTRACT_VALUE_MAX - CONTRACT_VALUE_MIN), 0.0, 1.0
+    )
+    baseline_scale = VOLUME_SCALE_MIN + normalized_contract_value * (VOLUME_SCALE_MAX - VOLUME_SCALE_MIN)
+    activity_adjustment = (_clamp(activity_level, 0.0, 1.0) - 0.5) * 0.2
+
+    return _clamp(baseline_scale + activity_adjustment, VOLUME_SCALE_MIN, VOLUME_SCALE_MAX)
 
 
 async def _generate_tenant(session, *, tenant_index: int, accounts_per_tenant: int, days: int, fake, seed: int):
@@ -49,6 +97,12 @@ async def _generate_tenant(session, *, tenant_index: int, accounts_per_tenant: i
         base_search_volume = fake.pyfloat(min_value=10, max_value=100)
         base_login_frequency = fake.pyfloat(min_value=1, max_value=8)
 
+        # activity_level: a simple derived 0-1-ish signal from the account's
+        # own baseline login frequency (known generation range 1-8), used as
+        # usage_volume_multiplier's activity input (Decision D03).
+        activity_level = _clamp(base_login_frequency / 8.0, 0.0, 1.0)
+        volume_scale = _volume_scale_factor(account.contract_value, activity_level)
+
         for day_index in range(days):
             event_date = start + timedelta(days=day_index)
             feature_depth = daily_feature_depth(base_feature_depth, day_index, is_churning)
@@ -58,8 +112,10 @@ async def _generate_tenant(session, *, tenant_index: int, accounts_per_tenant: i
             login_frequency = daily_login_frequency(base_login_frequency, day_index, is_churning)
             _ = churn_probability(feature_depth)  # available for future consumers; not persisted here
 
+            events_per_identity = max(1, round(max(1, int(login_frequency)) * volume_scale))
+
             for identity in identities:
-                for _ in range(max(1, int(login_frequency))):
+                for _ in range(events_per_identity):
                     await record_event(
                         session,
                         tenant_id=tenant.id,
@@ -72,6 +128,32 @@ async def _generate_tenant(session, *, tenant_index: int, accounts_per_tenant: i
                         },
                         client_timestamp=event_date,
                     )
+
+        # Deal generation (Decision D03's funnel-duration signal, Decision
+        # D04's CRM-side direct write — kept separate from the event-emission
+        # loop above, never derived from raw_events).
+        feature_usage_index = _clamp((base_feature_depth - 2) / (10 - 2), 0.0, 1.0)
+        funnel_days = funnel_stage_duration_days(feature_usage_index)
+
+        if is_churning or feature_usage_index < 0.4:
+            deal_stage = DEAL_STAGE_CLOSED_LOST
+        elif feature_usage_index >= 0.7:
+            deal_stage = DEAL_STAGE_CLOSED_WON
+        else:
+            deal_stage = DEAL_STAGE_NEGOTIATION
+
+        deal_amount = int(account.contract_value * fake.pyfloat(min_value=0.85, max_value=1.15))
+        entered_stage_at = max(start, now - timedelta(days=funnel_days))
+
+        await create_deal_for_account(
+            session,
+            tenant_id=tenant.id,
+            hubspot_company_id=account.hubspot_company_id,
+            stage=deal_stage,
+            amount=deal_amount,
+            entered_stage_at=entered_stage_at,
+            fake=fake,
+        )
 
     await session.commit()
 

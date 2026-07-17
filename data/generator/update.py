@@ -1,7 +1,7 @@
 import argparse
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import select
@@ -43,10 +43,13 @@ async def run_update_for_tenant(
     for identity in identities:
         identities_by_account.setdefault(identity.account_id, []).append(identity)
 
+    start = datetime.now(timezone.utc) - timedelta(days=days)
+
     async with httpx.AsyncClient(base_url=base_url) as client:
         for account in accounts:
             account_identities = identities_by_account.get(account.id, [])
             for day_index in range(days):
+                event_date = start + timedelta(days=day_index)
                 feature_depth = daily_feature_depth(base=6.0, day_index=day_index, is_churning=False)
                 search_volume = daily_search_volume(
                     base=40.0, day_index=day_index, firm_type=account.firm_type, is_churning=False
@@ -63,7 +66,7 @@ async def run_update_for_tenant(
                                 "feature_depth": round(feature_depth, 2),
                                 "search_volume": round(search_volume, 2),
                             },
-                            "client_timestamp": datetime.now(timezone.utc).isoformat(),
+                            "client_timestamp": event_date.isoformat(),
                         },
                     )
                     if response.status_code != 202:
