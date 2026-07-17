@@ -1,4 +1,5 @@
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
 
@@ -18,7 +19,7 @@ logger = logging.getLogger("meridian.telemetry")
 
 telemetry_router = APIRouter(prefix="/telemetry", tags=["telemetry"])
 
-TELEMETRY_RATE_LIMIT = 100  # requests/sec/tenant, see Decision D14/D15
+TELEMETRY_RATE_LIMIT = int(os.environ.get("TELEMETRY_RATE_LIMIT", "100"))  # requests/sec/tenant, see Decision D14/D15
 TELEMETRY_RATE_WINDOW_SECONDS = 1
 
 
