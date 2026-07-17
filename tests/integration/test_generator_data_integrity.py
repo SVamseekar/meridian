@@ -15,7 +15,8 @@ from meridian.db.models.raw_event import RawEvent
 import meridian.db.models  # noqa: F401
 
 pytestmark = pytest.mark.skipif(
-    "CI" not in os.environ, reason="requires the generator-tests CI step's populated database"
+    "DATABASE_URL" not in os.environ,
+    reason="requires the generator-tests CI step's populated database (DATABASE_URL unset)",
 )
 
 
