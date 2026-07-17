@@ -45,7 +45,9 @@ async def list_write_keys(
     _require_dev_tenant(tenant_id)
 
     result = await session.execute(
-        select(TenantWriteKey).where(TenantWriteKey.tenant_id == tenant_id)
+        select(TenantWriteKey)
+        .where(TenantWriteKey.tenant_id == tenant_id)
+        .order_by(TenantWriteKey.created_at.desc())
     )
     rows = result.scalars().all()
     return [
