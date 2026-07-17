@@ -52,3 +52,6 @@ ml/models/*.joblib
 # Guideline docs / specs — intentionally local-only, not version-controlled
 # (see docs/guidelines/ai-best-practices.md)
 docs/
+
+# AI runbook — intentionally local-only, not version-controlled
+AGENTS.md
