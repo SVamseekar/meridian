@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: stg_raw_events
+    description: "Cleaned/typed view over raw_events. Source-agnostic — fed by both direct SDK ingestion and (later) Amplitude pull, per Decision D11."
+    columns:
+      - name: id
+        description: "Primary key."
+        tests:
+          - not_null
+          - unique
+      - name: tenant_id
+        description: "Owning tenant. See Decision D08."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: source('app', 'tenants')
+                field: id
+      - name: anonymous_id
+        tests:
+          - not_null
+      - name: event_name
+        tests:
+          - not_null
+      - name: client_timestamp
+        tests:
+          - not_null
