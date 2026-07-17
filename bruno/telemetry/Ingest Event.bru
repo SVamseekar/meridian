@@ -1,0 +1,24 @@
+meta {
+  name: Ingest Event
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/api/v1/telemetry/event
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{writeKey}}
+}
+
+body:json {
+  {
+    "anonymous_id": "bruno-test-anon",
+    "event_name": "login",
+    "properties": { "firm_type": "boutique" },
+    "client_timestamp": "2026-07-17T00:00:00Z"
+  }
+}

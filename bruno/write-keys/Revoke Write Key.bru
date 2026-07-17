@@ -1,0 +1,10 @@
+meta {
+  name: Revoke Write Key
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{base_url}}/api/v1/tenants/00000000-0000-0000-0000-000000000001/write-keys/{{keyId}}
+  auth: none
+}

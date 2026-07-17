@@ -48,3 +48,7 @@ ml/models/*.joblib
 
 # Git worktrees
 .worktrees/
+
+# Guideline docs / specs — intentionally local-only, not version-controlled
+# (see docs/guidelines/ai-best-practices.md)
+docs/
