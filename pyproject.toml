@@ -40,5 +40,6 @@ dev = [
     "pytest-asyncio (>=1.4.0,<2.0.0)",
     "testcontainers (>=4.14.2,<5.0.0)",
     "httpx (>=0.28.1,<0.29.0)",
-    "greenlet (>=3.5.3,<4.0.0)"
+    "greenlet (>=3.5.3,<4.0.0)",
+    "aiosqlite (>=0.21.0,<0.22.0)"
 ]
