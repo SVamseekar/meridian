@@ -63,7 +63,7 @@ jobs:
           DATABASE_URL: postgresql+psycopg://meridian:meridian@localhost:5432/meridian
         run: |
           poetry run python scripts/seed_dev_tenant.py
-          poetry run python scripts/seed_dev_raw_event.py
+          poetry run python -m scripts.seed_dev_raw_event
 
       - name: dbt run
         working-directory: dbt
