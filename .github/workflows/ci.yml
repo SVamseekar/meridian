@@ -23,9 +23,17 @@ jobs:
         run: poetry install
 
       - name: Run unit tests
+        env:
+          SESSION_SECRET: ci-session-secret
+          SESSION_DEV_SECRET: ci-bootstrap-secret
+          ENVIRONMENT: test
         run: poetry run pytest tests/unit -v
 
       - name: Run integration tests (Testcontainers)
+        env:
+          SESSION_SECRET: ci-session-secret
+          SESSION_DEV_SECRET: ci-bootstrap-secret
+          ENVIRONMENT: test
         run: poetry run pytest tests/integration -v
 
   dbt-tests:
@@ -168,6 +176,9 @@ jobs:
         env:
           DATABASE_URL: postgresql+psycopg://meridian:meridian@localhost:5432/meridian
           REDIS_URL: redis://localhost:6379/0
+          SESSION_SECRET: ci-session-secret
+          SESSION_DEV_SECRET: ci-bootstrap-secret
+          ENVIRONMENT: development
         run: |
           poetry run uvicorn meridian.main:app --host 0.0.0.0 --port 8000 &
           sleep 3
@@ -188,5 +199,6 @@ jobs:
         working-directory: frontend
         env:
           NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+          SESSION_DEV_SECRET: ci-bootstrap-secret
           CI: true
         run: npx playwright test
