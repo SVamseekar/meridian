@@ -179,6 +179,11 @@ jobs:
           SESSION_SECRET: ci-session-secret
           SESSION_DEV_SECRET: ci-bootstrap-secret
           ENVIRONMENT: development
+          HUBSPOT_CLIENT_ID: ci-placeholder-client-id
+          HUBSPOT_CLIENT_SECRET: ci-placeholder-client-secret
+          HUBSPOT_REDIRECT_URI: http://localhost:8000/api/v1/oauth/hubspot/callback
+          HUBSPOT_OAUTH_STATE_SECRET: ci-oauth-state-secret
+          ENCRYPTION_KEY: _E1W6dwX01A3DiTRUi0mIaoAd3dzUGQ5QOLge58zjHw=
         run: |
           poetry run uvicorn meridian.main:app --host 0.0.0.0 --port 8000 &
           sleep 3
