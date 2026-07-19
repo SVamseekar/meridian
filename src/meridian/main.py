@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from meridian.api.middleware import RequestLoggingMiddleware
+from meridian.api.routes.session import session_router
 from meridian.api.routes.telemetry import telemetry_router
 from meridian.api.routes.write_keys import write_keys_router
 from meridian.logging_config import configure_logging
@@ -19,9 +20,10 @@ app.add_middleware(
     allow_origins=cors_allowed_origins,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
-    allow_credentials=False,
+    allow_credentials=True,
 )
 app.add_middleware(RequestLoggingMiddleware)
 
+app.include_router(session_router, prefix="/api/v1")
 app.include_router(telemetry_router, prefix="/api/v1")
 app.include_router(write_keys_router, prefix="/api/v1")
