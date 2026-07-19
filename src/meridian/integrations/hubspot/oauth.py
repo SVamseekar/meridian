@@ -65,3 +65,18 @@ async def exchange_code_for_tokens(code: str) -> HubSpotTokenResponse:
         )
     except (KeyError, ValueError) as exc:
         raise HubSpotTokenExchangeError("HubSpot token response missing expected fields") from exc
+
+
+async def fetch_portal_id(access_token: str) -> str:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"https://api.hubapi.com/oauth/v1/access-tokens/{access_token}")
+
+    if response.status_code != 200:
+        raise HubSpotTokenExchangeError(
+            f"HubSpot token-info lookup failed with status {response.status_code}"
+        )
+
+    try:
+        return str(response.json()["hub_id"])
+    except (KeyError, ValueError) as exc:
+        raise HubSpotTokenExchangeError("HubSpot token-info response missing hub_id") from exc
