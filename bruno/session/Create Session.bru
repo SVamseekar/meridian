@@ -1,0 +1,18 @@
+meta {
+  name: Create Session
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/api/v1/session
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "tenant_id": "00000000-0000-0000-0000-000000000001",
+    "dev_secret": "dev-bootstrap-secret-change-me"
+  }
+}
