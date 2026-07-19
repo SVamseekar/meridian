@@ -38,3 +38,19 @@ export async function revokeWriteKey(id: string): Promise<void> {
   });
   if (!res.ok) throw new Error(`Failed to revoke write key: ${res.status}`);
 }
+
+export type HubSpotConnectionStatus = {
+  connected: boolean;
+  connected_at: string | null;
+};
+
+export const HUBSPOT_AUTHORIZE_URL = `${API_BASE_URL}/oauth/hubspot/authorize`;
+
+export async function getHubSpotStatus(): Promise<HubSpotConnectionStatus> {
+  const res = await fetch(`${API_BASE_URL}/oauth/hubspot/status`, {
+    cache: "no-store",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to get HubSpot status: ${res.status}`);
+  return res.json();
+}
