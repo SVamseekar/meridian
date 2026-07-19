@@ -40,5 +40,17 @@ services:
         condition: service_healthy
     command: uvicorn meridian.main:app --host 0.0.0.0 --port 8000 --reload
 
+  generator:
+    build:
+      context: .
+      dockerfile: data/generator/Dockerfile
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - generator
+
 volumes:
   postgres_data:

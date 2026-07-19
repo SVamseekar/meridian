@@ -45,3 +45,11 @@ def get_sync_session() -> Generator[Session, None, None]:
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with _get_async_session_local()() as session:
         yield session
+
+
+def get_async_sessionmaker() -> sessionmaker:
+    """Returns the raw async sessionmaker for callers (like the generator)
+    that need to open multiple independent sessions themselves, rather
+    than the FastAPI-dependency-injected single-session pattern used by
+    get_async_session()."""
+    return _get_async_session_local()

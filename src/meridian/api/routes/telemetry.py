@@ -10,8 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from meridian.api.rate_limit import RateLimiter
 from meridian.api.redis_client import get_redis
 from meridian.api.schemas.telemetry import TelemetryEventAck, TelemetryEventIn
+from meridian.api.services.telemetry import record_event
 from meridian.api.write_keys import hash_write_key
-from meridian.db.models.raw_event import RawEvent
 from meridian.db.models.tenant_write_key import TenantWriteKey
 from meridian.db.session import get_async_session
 
@@ -78,17 +78,14 @@ async def ingest_event(
         )
         raise HTTPException(status_code=429, detail="Rate limit exceeded")
 
-    import uuid
-
-    row = RawEvent(
-        id=uuid.uuid4(),
+    await record_event(
+        session,
         tenant_id=tenant_id,
         anonymous_id=event.anonymous_id,
         event_name=event.event_name,
         properties=event.properties,
         client_timestamp=event.client_timestamp,
     )
-    session.add(row)
     await session.commit()
 
     return TelemetryEventAck()
