@@ -2,6 +2,7 @@ import os
 import time
 import uuid
 
+from fastapi import HTTPException, Request
 from jose import JWTError, jwt
 
 SESSION_COOKIE_NAME = "meridian_session"
@@ -35,3 +36,13 @@ def decode_session_token(token: str) -> uuid.UUID:
         return uuid.UUID(claims["tenant_id"])
     except (JWTError, KeyError, ValueError) as exc:
         raise InvalidSessionTokenError("Invalid or expired session token") from exc
+
+
+async def get_current_tenant(request: Request) -> uuid.UUID:
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if token is None:
+        raise HTTPException(status_code=401, detail="No session")
+    try:
+        return decode_session_token(token)
+    except InvalidSessionTokenError:
+        raise HTTPException(status_code=401, detail="Invalid or expired session")
