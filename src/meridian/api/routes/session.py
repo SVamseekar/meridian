@@ -22,7 +22,7 @@ async def create_session(
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
     environment = os.environ.get("ENVIRONMENT", "development")
-    if environment == "production":
+    if environment not in {"development", "test"}:
         logger.warning(
             '{"event": "session_bootstrap_attempted_in_production", "tenant_id": "%s"}',
             body.tenant_id,
