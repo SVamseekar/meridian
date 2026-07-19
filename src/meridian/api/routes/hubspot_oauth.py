@@ -87,4 +87,4 @@ async def status(
 
     if row is None:
         return HubSpotConnectionStatus(connected=False, connected_at=None)
-    return HubSpotConnectionStatus(connected=True, connected_at=row.created_at)
+    return HubSpotConnectionStatus(connected=True, connected_at=row.updated_at)
