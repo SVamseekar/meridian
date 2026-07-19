@@ -8,7 +8,12 @@ from sqlalchemy.pool import StaticPool
 
 from meridian.db.base import Base
 from meridian.db.models.tenant import Tenant
-from scripts.seed_dev_tenant import DEV_TENANT_ID, seed_dev_tenant
+from scripts.seed_dev_tenant import (
+    DEV_TENANT_2_ID,
+    DEV_TENANT_ID,
+    seed_dev_tenant,
+    seed_dev_tenant_2,
+)
 
 
 # Override UUID type compilation for SQLite dialect
@@ -54,3 +59,35 @@ def test_seed_dev_tenant_is_idempotent(tmp_path):
         session.commit()
         count = session.query(Tenant).count()
         assert count == 1
+
+
+def test_seed_dev_tenant_2_creates_row(tmp_path):
+    engine = _make_sqlite_engine(tmp_path)
+    Base.metadata.create_all(engine, tables=[Tenant.__table__])
+    with Session(engine) as session:
+        tenant = seed_dev_tenant_2(session)
+        session.commit()
+        assert tenant.id == DEV_TENANT_2_ID
+        assert session.get(Tenant, DEV_TENANT_2_ID) is not None
+
+
+def test_seed_dev_tenant_2_is_idempotent(tmp_path):
+    engine = _make_sqlite_engine(tmp_path)
+    Base.metadata.create_all(engine, tables=[Tenant.__table__])
+    with Session(engine) as session:
+        seed_dev_tenant_2(session)
+        session.commit()
+        seed_dev_tenant_2(session)  # second call must not raise or duplicate
+        session.commit()
+        count = session.query(Tenant).count()
+        assert count == 1
+
+
+def test_seed_dev_tenant_and_seed_dev_tenant_2_do_not_collide(tmp_path):
+    engine = _make_sqlite_engine(tmp_path)
+    Base.metadata.create_all(engine, tables=[Tenant.__table__])
+    with Session(engine) as session:
+        seed_dev_tenant(session)
+        seed_dev_tenant_2(session)
+        session.commit()
+        assert session.query(Tenant).count() == 2
