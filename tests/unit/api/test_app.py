@@ -24,7 +24,7 @@ def test_app_exposes_write_keys_routes():
             for candidate in route.effective_candidates():
                 if hasattr(candidate, 'path'):
                     routes.add(candidate.path)
-    assert "/api/v1/tenants/{tenant_id}/write-keys" in routes
+    assert "/api/v1/write-keys" in routes
 
 
 def test_docs_endpoint_available():
