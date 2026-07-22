@@ -36,6 +36,7 @@ def test_hubspot_connect_returns_authorize_url(client):
     data = response.json()
     assert "authorize_url" in data
     assert "https://app.hubspot.com/oauth/authorize?" in data["authorize_url"]
+    assert "hubspot_oauth_nonce" in response.cookies
 
 
 def test_hubspot_status_not_connected(client, monkeypatch):
@@ -85,7 +86,8 @@ def test_hubspot_callback_missing_state_redirects_with_error(client):
 
 def test_hubspot_callback_successful_exchange_redirects_connected(client, monkeypatch):
     tenant_id = uuid.uuid4()
-    state_token = create_oauth_state_token(tenant_id)
+    state_token, nonce = create_oauth_state_token(tenant_id)
+    client.cookies.set("hubspot_oauth_nonce", nonce)
 
     import meridian.api.routes.hubspot as routes_mod
 
@@ -108,3 +110,17 @@ def test_hubspot_callback_successful_exchange_redirects_connected(client, monkey
     )
     assert response.status_code in (302, 307)
     assert response.headers["location"] == "http://localhost:3001/settings/hubspot?connected=1"
+
+
+def test_hubspot_callback_rejects_state_without_matching_nonce_cookie(client):
+    tenant_id = uuid.uuid4()
+    state_token, _nonce = create_oauth_state_token(tenant_id)
+    # No hubspot_oauth_nonce cookie set — simulates a state token replayed
+    # outside the browser that initiated the flow.
+
+    response = client.get(
+        f"/api/v1/oauth/hubspot/callback?code=valid-code&state={state_token}",
+        follow_redirects=False,
+    )
+    assert response.status_code in (302, 307)
+    assert response.headers["location"] == "http://localhost:3001/settings/hubspot?error=invalid_state"

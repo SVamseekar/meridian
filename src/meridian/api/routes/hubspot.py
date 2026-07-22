@@ -1,8 +1,9 @@
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,6 +39,8 @@ logger = logging.getLogger(__name__)
 
 hubspot_router = APIRouter(tags=["hubspot"])
 
+OAUTH_STATE_NONCE_COOKIE = "hubspot_oauth_nonce"
+
 
 @hubspot_router.get(
     "/integrations/hubspot/connect",
@@ -45,16 +48,37 @@ hubspot_router = APIRouter(tags=["hubspot"])
     status_code=status.HTTP_200_OK,
 )
 async def hubspot_connect(
+    response: Response,
     tenant_id: Annotated[str, Depends(get_current_tenant)],
 ) -> HubspotConnectResponse:
-    """Generate state JWT and authorization URL for the current tenant."""
-    state_token = create_oauth_state_token(tenant_id)
+    """Generate state JWT and authorization URL for the current tenant.
+
+    The state JWT alone proves the token was minted by this server and
+    encodes which tenant it's for, but on its own it's a bearer credential:
+    if it leaked (referrer header, browser history, logs) within its TTL,
+    anyone holding it could complete the callback and attach HubSpot
+    credentials to that tenant without an active session. Binding the
+    JWT's nonce to an HttpOnly cookie set here, and requiring the callback
+    to present the same nonce, means completing the flow also requires
+    the browser that started it.
+    """
+    state_token, nonce = create_oauth_state_token(tenant_id)
     authorize_url = build_authorize_url(state=state_token)
+    response.set_cookie(
+        key=OAUTH_STATE_NONCE_COOKIE,
+        value=nonce,
+        max_age=600,
+        httponly=True,
+        secure=os.environ.get("ENVIRONMENT", "development") != "development",
+        samesite="lax",
+        path="/",
+    )
     return HubspotConnectResponse(authorize_url=authorize_url)
 
 
 @hubspot_router.get("/oauth/hubspot/callback")
 async def hubspot_callback(
+    request: Request,
     code: str | None = Query(None),
     state: str | None = Query(None),
     error: str | None = Query(None),
@@ -63,19 +87,31 @@ async def hubspot_callback(
     """Public OAuth callback endpoint for HubSpot."""
     frontend_url = get_frontend_base_url()
 
+    def _redirect(path: str) -> RedirectResponse:
+        # The state nonce cookie is single-use — clear it on every exit path
+        # (success or failure) so a replayed callback can't reuse it.
+        resp = RedirectResponse(f"{frontend_url}{path}")
+        resp.delete_cookie(OAUTH_STATE_NONCE_COOKIE, path="/")
+        return resp
+
     if not state or error:
         logger.warning("HubSpot OAuth callback received error or missing state: error=%s", error)
-        return RedirectResponse(f"{frontend_url}/settings/hubspot?error=oauth_failed")
+        return _redirect("/settings/hubspot?error=oauth_failed")
+
+    expected_nonce = request.cookies.get(OAUTH_STATE_NONCE_COOKIE)
+    if not expected_nonce:
+        logger.warning("HubSpot OAuth callback missing nonce cookie (state token replayed outside originating browser?)")
+        return _redirect("/settings/hubspot?error=invalid_state")
 
     try:
-        tenant_id = decode_oauth_state_token(state)
+        tenant_id = decode_oauth_state_token(state, expected_nonce=expected_nonce)
     except InvalidOAuthStateError:
         logger.warning("HubSpot OAuth callback received invalid state token")
-        return RedirectResponse(f"{frontend_url}/settings/hubspot?error=invalid_state")
+        return _redirect("/settings/hubspot?error=invalid_state")
 
     if not code:
         logger.warning("HubSpot OAuth callback missing authorization code")
-        return RedirectResponse(f"{frontend_url}/settings/hubspot?error=oauth_failed")
+        return _redirect("/settings/hubspot?error=oauth_failed")
 
     try:
         tokens = await exchange_code_for_tokens(code)
@@ -99,9 +135,9 @@ async def hubspot_callback(
         )
     except Exception as exc:
         logger.error("Failed to complete HubSpot OAuth token exchange: %s", exc, exc_info=True)
-        return RedirectResponse(f"{frontend_url}/settings/hubspot?error=oauth_failed")
+        return _redirect("/settings/hubspot?error=oauth_failed")
 
-    return RedirectResponse(f"{frontend_url}/settings/hubspot?connected=1")
+    return _redirect("/settings/hubspot?connected=1")
 
 
 @hubspot_router.get(
