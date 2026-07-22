@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from sqlalchemy import UniqueConstraint
 
 from meridian.db.models.staging_hubspot_deal import StagingHubspotDeal
 
@@ -23,6 +24,10 @@ def test_staging_hubspot_deal_tenant_id_is_not_nullable():
     assert column.nullable is False
 
 
-def test_staging_hubspot_deal_hubspot_deal_id_is_unique():
-    column = StagingHubspotDeal.__table__.columns["hubspot_deal_id"]
-    assert column.unique is True
+def test_staging_hubspot_deal_has_composite_unique_constraint():
+    constraints = [
+        c for c in StagingHubspotDeal.__table__.constraints
+        if isinstance(c, UniqueConstraint) and c.name == "uq_staging_hubspot_deals_tenant_deal"
+    ]
+    assert len(constraints) == 1
+    assert [col.name for col in constraints[0].columns] == ["tenant_id", "hubspot_deal_id"]

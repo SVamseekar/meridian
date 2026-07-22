@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, Integer, DateTime, ForeignKey, func
+from sqlalchemy import String, Integer, DateTime, ForeignKey, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -9,18 +9,23 @@ from meridian.db.base import Base
 
 
 class StagingHubspotDeal(Base):
-    """Generator-populated stand-in for HubSpot's inbound deal sync
-    (Decision D04) until step 5's real sync exists."""
+    """HubSpot's inbound deal sync staging table (Decision D04/D05).
+    Multi-tenant scoped by tenant_id."""
 
     __tablename__ = "staging_hubspot_deals"
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "hubspot_deal_id", name="uq_staging_hubspot_deals_tenant_deal"
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False, index=True
     )
-    hubspot_deal_id: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    hubspot_deal_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     hubspot_company_id: Mapped[str] = mapped_column(
-        String, ForeignKey("staging_hubspot_companies.hubspot_company_id"), nullable=False, index=True
+        String, nullable=False, index=True
     )
     stage: Mapped[str] = mapped_column(String, nullable=False)
     amount: Mapped[int] = mapped_column(Integer, nullable=False)

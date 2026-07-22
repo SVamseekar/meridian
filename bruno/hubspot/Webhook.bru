@@ -1,0 +1,28 @@
+meta {
+  name: Webhook
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{base_url}}/api/v1/webhooks/hubspot
+  auth: none
+}
+
+headers {
+  X-HubSpot-Signature-v3: {{signature}}
+  X-HubSpot-Request-Timestamp: {{timestamp}}
+  Content-Type: application/json
+}
+
+body:json {
+  [
+    {
+      "portalId": 12345,
+      "subscriptionType": "deal.propertyChange",
+      "objectId": 999,
+      "propertyName": "dealstage",
+      "propertyValue": "closedwon"
+    }
+  ]
+}
