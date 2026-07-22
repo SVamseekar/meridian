@@ -1,0 +1,65 @@
+name: Scheduled Tenant Sync
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    name: HubSpot Inbound Sync
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: meridian
+          POSTGRES_PASSWORD: meridian
+          POSTGRES_DB: meridian
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Load cached venv
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        run: poetry install --no-interaction
+
+      - name: Run Alembic Migrations
+        env:
+          DATABASE_URL: postgresql+psycopg://meridian:meridian@localhost:5432/meridian
+        run: poetry run alembic upgrade head
+
+      - name: Run HubSpot Sync Worker
+        env:
+          DATABASE_URL: postgresql+psycopg://meridian:meridian@localhost:5432/meridian
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          HUBSPOT_CLIENT_ID: ${{ secrets.HUBSPOT_CLIENT_ID }}
+          HUBSPOT_CLIENT_SECRET: ${{ secrets.HUBSPOT_CLIENT_SECRET }}
+          HUBSPOT_OAUTH_STATE_SECRET: ${{ secrets.HUBSPOT_OAUTH_STATE_SECRET }}
+        run: poetry run python scripts/hubspot_sync.py

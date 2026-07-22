@@ -29,6 +29,9 @@ export default function RootLayout({
           <span style={{ marginLeft: "1.5rem" }}>
             <a href="/settings/write-keys">Write Keys</a>
           </span>
+          <span style={{ marginLeft: "1.5rem" }}>
+            <a href="/settings/hubspot">HubSpot</a>
+          </span>
         </nav>
         <main style={{ padding: "1.5rem" }}>{children}</main>
       </body>

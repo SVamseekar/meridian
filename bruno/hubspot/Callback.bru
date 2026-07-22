@@ -1,0 +1,10 @@
+meta {
+  name: Callback
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/api/v1/oauth/hubspot/callback?code=mock_code&state=mock_state
+  auth: none
+}

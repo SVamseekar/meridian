@@ -38,3 +38,45 @@ export async function revokeWriteKey(id: string): Promise<void> {
   });
   if (!res.ok) throw new Error(`Failed to revoke write key: ${res.status}`);
 }
+
+export type HubspotStatusResponse = {
+  connected: boolean;
+  hubspot_portal_id: string | null;
+  scopes: string[] | null;
+  connected_at: string | null;
+  last_sync_at: string | null;
+  last_sync_status: string | null;
+  last_sync_error: string | null;
+};
+
+export type HubspotConnectResponse = {
+  authorize_url: string;
+};
+
+export async function getHubSpotStatus(): Promise<HubspotStatusResponse> {
+  const res = await fetch(`${API_BASE_URL}/integrations/hubspot/status`, {
+    cache: "no-store",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to fetch HubSpot status: ${res.status}`);
+  return res.json();
+}
+
+export async function getHubSpotConnectUrl(): Promise<string> {
+  const res = await fetch(`${API_BASE_URL}/integrations/hubspot/connect`, {
+    cache: "no-store",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to get HubSpot connect URL: ${res.status}`);
+  const data = await res.json();
+  return data.authorize_url;
+}
+
+export async function disconnectHubSpot(): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/integrations/hubspot`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to disconnect HubSpot: ${res.status}`);
+}
+

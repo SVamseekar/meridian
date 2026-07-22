@@ -1,0 +1,23 @@
+meta {
+  name: Webhook
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{base_url}}/api/v1/webhooks/hubspot
+  auth: none
+}
+
+body:json {
+  [
+    {
+      "eventId": 1,
+      "subscriptionType": "deal.creation",
+      "portalId": 12345,
+      "objectId": 999,
+      "propertyName": "dealstage",
+      "propertyValue": "closedwon"
+    }
+  ]
+}
