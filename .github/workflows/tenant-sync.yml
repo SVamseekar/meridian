@@ -1,0 +1,45 @@
+name: HubSpot Tenant Sync
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  hubspot-sync:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: meridian
+          POSTGRES_PASSWORD: meridian
+          POSTGRES_DB: meridian
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Poetry
+        run: pipx install poetry
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql+psycopg://meridian:meridian@localhost:5432/meridian
+        run: poetry run alembic upgrade head
+
+      - name: Run HubSpot inbound sync worker
+        env:
+          DATABASE_URL: postgresql+psycopg://meridian:meridian@localhost:5432/meridian
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          HUBSPOT_CLIENT_ID: ${{ secrets.HUBSPOT_CLIENT_ID }}
+          HUBSPOT_CLIENT_SECRET: ${{ secrets.HUBSPOT_CLIENT_SECRET }}
+          ENVIRONMENT: production
+        run: poetry run python scripts/hubspot_sync.py

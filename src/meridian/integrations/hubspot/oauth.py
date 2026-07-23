@@ -80,3 +80,85 @@ async def fetch_portal_id(access_token: str) -> str:
         return str(response.json()["hub_id"])
     except (KeyError, ValueError) as exc:
         raise HubSpotTokenExchangeError("HubSpot token-info response missing hub_id") from exc
+
+
+async def refresh_access_token(refresh_token: str) -> HubSpotTokenResponse:
+    """Exchange a refresh token for a new access/refresh token pair (D09
+    proactive refresh, used by the sync worker before a tenant's token
+    expires)."""
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            HUBSPOT_TOKEN_URL,
+            data={
+                "grant_type": "refresh_token",
+                "client_id": os.environ["HUBSPOT_CLIENT_ID"],
+                "client_secret": os.environ["HUBSPOT_CLIENT_SECRET"],
+                "refresh_token": refresh_token,
+            },
+        )
+
+    if response.status_code != 200:
+        raise HubSpotTokenExchangeError(
+            f"HubSpot token refresh failed with status {response.status_code}"
+        )
+
+    try:
+        body = response.json()
+        return HubSpotTokenResponse(
+            access_token=body["access_token"],
+            refresh_token=body["refresh_token"],
+            expires_in=body["expires_in"],
+        )
+    except (KeyError, ValueError) as exc:
+        raise HubSpotTokenExchangeError("HubSpot token refresh response missing expected fields") from exc
+
+
+HUBSPOT_API_BASE_URL = "https://api.hubapi.com"
+
+
+class HubSpotClient:
+    """Authenticated client for reading CRM data from HubSpot API v3.
+    Constructed per-tenant with that tenant's decrypted access token."""
+
+    def __init__(self, access_token: str, client: httpx.AsyncClient | None = None):
+        self.access_token = access_token
+        self._external_client = client
+
+    def _headers(self) -> dict:
+        return {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+
+    async def _get(self, url: str, params: dict) -> dict:
+        should_close = False
+        client = self._external_client
+        if client is None:
+            client = httpx.AsyncClient()
+            should_close = True
+        try:
+            response = await client.get(url, params=params, headers=self._headers())
+            if response.status_code != 200:
+                raise HubSpotTokenExchangeError(
+                    f"HubSpot CRM read failed with status {response.status_code}"
+                )
+            return response.json()
+        finally:
+            if should_close:
+                await client.aclose()
+
+    async def list_companies(self, after: str | None = None, limit: int = 100) -> dict:
+        params = {"limit": str(limit), "properties": "name,industry"}
+        if after:
+            params["after"] = after
+        return await self._get(f"{HUBSPOT_API_BASE_URL}/crm/v3/objects/companies", params)
+
+    async def list_deals(self, after: str | None = None, limit: int = 100) -> dict:
+        params = {
+            "limit": str(limit),
+            "properties": "dealstage,amount,hs_lastmodifieddate,createdate",
+            "associations": "companies",
+        }
+        if after:
+            params["after"] = after
+        return await self._get(f"{HUBSPOT_API_BASE_URL}/crm/v3/objects/deals", params)

@@ -44,6 +44,14 @@ export type HubSpotConnectionStatus = {
   connected_at: string | null;
 };
 
+export type HubSpotSyncStatus = {
+  hubspot_portal_id: string | null;
+  scopes: string[] | null;
+  last_sync_at: string | null;
+  last_sync_status: string | null;
+  last_sync_error: string | null;
+};
+
 export const HUBSPOT_AUTHORIZE_URL = `${API_BASE_URL}/oauth/hubspot/authorize`;
 
 export async function getHubSpotStatus(): Promise<HubSpotConnectionStatus> {
@@ -53,4 +61,22 @@ export async function getHubSpotStatus(): Promise<HubSpotConnectionStatus> {
   });
   if (!res.ok) throw new Error(`Failed to get HubSpot status: ${res.status}`);
   return res.json();
+}
+
+export async function getHubSpotSyncStatus(): Promise<HubSpotSyncStatus | null> {
+  const res = await fetch(`${API_BASE_URL}/oauth/hubspot/sync-status`, {
+    cache: "no-store",
+    credentials: "include",
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`Failed to get HubSpot sync status: ${res.status}`);
+  return res.json();
+}
+
+export async function disconnectHubSpot(): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/oauth/hubspot`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error(`Failed to disconnect HubSpot: ${res.status}`);
 }

@@ -138,3 +138,69 @@ async def test_status_returns_connected_after_credentials_stored(async_client, d
     body = response.json()
     assert body["connected"] is True
     assert body["connected_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_disconnect_removes_credentials_and_is_idempotent(async_client, db_session, monkeypatch):
+    monkeypatch.setenv("ENCRYPTION_KEY", Fernet.generate_key().decode())
+    tenant_id = await _authed_client(async_client, db_session)
+
+    from meridian.integrations.hubspot.credentials import upsert_hubspot_credentials
+    from meridian.integrations.hubspot.oauth import HubSpotTokenResponse
+
+    await upsert_hubspot_credentials(
+        db_session,
+        tenant_id,
+        HubSpotTokenResponse(access_token="a", refresh_token="b", expires_in=1800),
+        portal_id="12345",
+        scopes=["crm.objects.deals.read"],
+    )
+    await db_session.commit()
+
+    response = await async_client.delete("/api/v1/oauth/hubspot")
+    assert response.status_code == 204
+
+    status_response = await async_client.get("/api/v1/oauth/hubspot/status")
+    assert status_response.json()["connected"] is False
+
+    # Disconnecting again when already disconnected is a no-op, not an error.
+    second_response = await async_client.delete("/api/v1/oauth/hubspot")
+    assert second_response.status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_sync_status_returns_404_when_never_connected(async_client, db_session):
+    await _authed_client(async_client, db_session)
+
+    response = await async_client.get("/api/v1/oauth/hubspot/sync-status")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_sync_status_reflects_last_sync_result(async_client, db_session, monkeypatch):
+    monkeypatch.setenv("ENCRYPTION_KEY", Fernet.generate_key().decode())
+    tenant_id = await _authed_client(async_client, db_session)
+
+    from meridian.integrations.hubspot.credentials import (
+        record_hubspot_sync_result,
+        upsert_hubspot_credentials,
+    )
+    from meridian.integrations.hubspot.oauth import HubSpotTokenResponse
+
+    await upsert_hubspot_credentials(
+        db_session,
+        tenant_id,
+        HubSpotTokenResponse(access_token="a", refresh_token="b", expires_in=1800),
+        portal_id="12345",
+        scopes=["crm.objects.deals.read"],
+    )
+    await db_session.commit()
+
+    await record_hubspot_sync_result(db_session, tenant_id, status="failed", error="revoked")
+
+    response = await async_client.get("/api/v1/oauth/hubspot/sync-status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["last_sync_status"] == "failed"
+    assert body["last_sync_error"] == "revoked"
+    assert body["hubspot_portal_id"] == "12345"
